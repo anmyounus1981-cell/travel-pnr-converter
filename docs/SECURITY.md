@@ -6,8 +6,8 @@
 - AI parser API key (if used) server-side only
 
 ## Permission model
-- **v1**: open read/write (no login) — demo mode for internal team
-- **Lock-down**: per-user RLS — `auth.uid() = user_id` on all tables; each agent sees only their own conversions
+- **Before migration 0003**: open read/write RLS is still active in the live database, even if login code has been deployed.
+- **After migration 0003**: authenticated, per-user RLS on conversions and child tables; child rows must belong to a conversion with the same authenticated owner. See `AUTH_ROLLOUT.md` for cutover requirements.
 - Agent (AI parser) inherits user's permissions — cannot access data the user couldn't
 
 ## Approved-tools rule
