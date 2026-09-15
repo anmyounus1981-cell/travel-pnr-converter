@@ -11,6 +11,17 @@ function date(code: string, reference: Date): string {
   return month && day >= 1 && day <= 31 ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
 }
 function clock(value: string): string { return `${value.slice(0, 2)}:${value.slice(2)}`; }
+function addDays(day: string, count: number): string {
+  const result = new Date(`${day}T00:00:00Z`);
+  result.setUTCDate(result.getUTCDate() + count);
+  return result.toISOString().slice(0, 10);
+}
+function arrivalDay(departure: string, explicit: string | undefined, nextDay: boolean): string {
+  if (explicit) {
+    return date(explicit, new Date(`${departure}T00:00:00Z`));
+  }
+  return nextDay ? addDays(departure, 1) : departure;
+}
 // GDS paste supplies airport wall-clock times. The existing database column is
 // timestamptz and interprets zone-less values as UTC; do not present that
 // assumed offset as an airline-confirmed time zone in client documents.
@@ -20,22 +31,36 @@ export function displayPnrTime(value: string): string {
 }
 export function parsePnr(raw: string, reference = new Date()): Pick<Conversion, "pnr_code" | "gds_type" | "passengers" | "flights" | "hotels"> {
   const passengers: Passenger[] = [], flights: Flight[] = [], hotels: Hotel[] = [];
-  const pnr_code = raw.match(/(?:PNR|RECORD LOCATOR|BOOKING REF)\s*[:#-]?\s*([A-Z0-9]{6})/i)?.[1] || "";
-  const gds_type = /(?:RP\/|---\s*RLR)/i.test(raw) ? "amadeus" : /(?:\*A|\*R)/.test(raw) ? "sabre" : "unknown";
+  const normalized = raw.replace(/\s+/g, " ").trim();
+  const pnr_code = raw.match(/(?:PNR|RECORD LOCATOR|BOOKING REF)\s*[:#-]?\s*([A-Z0-9]{6})/i)?.[1]
+    || raw.match(/^\s*([A-Z0-9]{6})\/[A-Z]{2}\b/m)?.[1]
+    || raw.match(/^\s*([A-Z0-9]{6})\s*$/m)?.[1] || "";
+  const gds_type = /(?:RP\/|---\s*RLR)/i.test(raw) ? "amadeus"
+    : /\/DC[A-Z0-9]{2}\*|TKT\/TIME LIMIT|PRICE QUOTE RECORD/i.test(raw) ? "sabre"
+    : /FILED FARE DATA EXISTS|VENDOR LOCATOR DATA EXISTS|^\s*[A-Z0-9]{6}\/[A-Z]{2}\s+[A-Z]{3}/im.test(raw) ? "galileo" : "unknown";
+  // Numbered GDS name entries may wrap, contain spaces, and end in a title.
+  for (const match of normalized.matchAll(/(?:^|\s)\d+\.\d+\s*([A-Z][A-Z '-]*\/[A-Z][A-Z '-]*?)(?=\s+\d+\.\d+|\s+\d+\.?\s*[A-Z0-9]{2}\s*\d|$)/g)) {
+    const name = match[1].replace(/\s+(?:MR|MRS|MS|MISS|MSTR|MASTER)$/, "").replace(/\//g, " ").trim();
+    if (!passengers.some(p => p.name === name)) passengers.push({ name, type: "adult" });
+  }
+  // The weekday and HK/HS status precede the clocks in Sabre; Galileo can
+  // join the date to the airports and wrap its arrival clock onto another line.
+  const segments = /(?:^|\s)\d+\.?\s*([A-Z0-9]{2})\s*(\d{1,4})\s*([A-Z])?\s+(\d{2}[A-Z]{3}(?:\d{2})?)\s*(?:[1-7]\s+)?([A-Z]{3})([A-Z]{3})\*?\s*(?:HK|HS|HL|NN|RR|TK)\d+\s+(\d{4})\s+(#?)(\d{4})(?:\s+(\d{2}[A-Z]{3})(?:\s+[1-7])?)?/gi;
+  for (const match of normalized.matchAll(segments)) {
+    const departure = date(match[4], reference);
+    if (!departure || !/^(?:[01]\d|2[0-3])[0-5]\d$/.test(match[7]) || !/^(?:[01]\d|2[0-3])[0-5]\d$/.test(match[9])) continue;
+    const arrival = arrivalDay(departure, match[10], match[8] === "#");
+    flights.push({ airline: match[1].toUpperCase(), flight_number: match[2], origin: match[5].toUpperCase(), destination: match[6].toUpperCase(), departure_at: `${departure}T${clock(match[7])}:00`, arrival_at: `${arrival}T${clock(match[9])}:00`, cabin: "economy" });
+  }
   for (const line of raw.split(/\r?\n/)) {
-    for (const match of line.matchAll(/(?:^|\s)(?:\d+\.)?([A-Z][A-Z '\/-]+\/[A-Z][A-Z '\/-]+)(?=\s|$)/g)) {
-      const name = match[1].replace(/\//g, " ").trim();
-      if (!passengers.some(p => p.name === name)) passengers.push({ name, type: "adult" });
-    }
     for (const match of line.matchAll(/(?:^|\s)\d+\.\s*([A-Z][A-Z .'-]+\s+[A-Z][A-Z .'-]+)(?=\s+\d+\.|$)/g)) {
       const name = match[1].trim();
       if (!passengers.some(p => p.name === name)) passengers.push({ name, type: "adult" });
     }
-    const flight = line.match(/(?:^|\s)([A-Z0-9]{2})\s*(\d{1,4})\s*([A-Z])?\s+(\d{2}[A-Z]{3}(?:\d{2})?)\s+([A-Z]{3})([A-Z]{3})\s+(\d{4})\s+(\d{4})/i)
-      || line.match(/(?:^|\s)([A-Z0-9]{2})\s*(\d{1,4})\s+([A-Z])\s+(\d{2}[A-Z]{3}(?:\d{2})?)\s+([A-Z]{3})([A-Z]{3})\s+(\d{4})\s+(\d{4})/i);
+    const flight = line.match(/(?:^|\s)([A-Z0-9]{2})\s*(\d{1,4})\s*([A-Z])?\s+(\d{2}[A-Z]{3}(?:\d{2})?)\s+([A-Z]{3})([A-Z]{3})\s+(\d{4})\s+(\d{4})/i);
     if (flight) {
       const day = date(flight[4], reference);
-      if (day) flights.push({ airline: flight[1].toUpperCase(), flight_number: flight[2], origin: flight[5].toUpperCase(), destination: flight[6].toUpperCase(), departure_at: `${day}T${clock(flight[7])}:00`, arrival_at: `${day}T${clock(flight[8])}:00`, cabin: "economy" });
+      if (day && !flights.some(f => f.airline === flight[1].toUpperCase() && f.flight_number === flight[2] && f.departure_at === `${day}T${clock(flight[7])}:00`)) flights.push({ airline: flight[1].toUpperCase(), flight_number: flight[2], origin: flight[5].toUpperCase(), destination: flight[6].toUpperCase(), departure_at: `${day}T${clock(flight[7])}:00`, arrival_at: `${day}T${clock(flight[8])}:00`, cabin: "economy" });
     }
     const hotel = line.match(/(?:HTL|HOTEL)\s+(.+?)\s+(\d{2}[A-Z]{3}(?:\d{2})?)-(\d{2}[A-Z]{3}(?:\d{2})?)(?:\s+(\d+)\s+NIGHTS?)?/i);
     if (hotel) {
@@ -54,7 +79,7 @@ export function formatQuote(c: Conversion): string {
     `*Baggage:* ${c.baggage_info || "To be confirmed"}`,
     `*Cancellation:* ${c.cancellation_rule || "To be confirmed"}`,
     `*Reissue:* ${c.reissue_rule || "To be confirmed"}`,
-    "", "Flight times have no verified time zones. Confirm local times and date changes with the airline before ticketing.",
+    "", "Flight dates and time zones are unverified. Confirm local dates, times and year with the airline before ticketing.",
     "All fare, baggage and rules are subject to confirmation before ticketing."];
   return lines.filter((line, index) => line || lines[index - 1] !== "").join("\n").trim();
 }

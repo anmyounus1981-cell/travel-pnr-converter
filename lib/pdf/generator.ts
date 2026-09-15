@@ -8,7 +8,7 @@ export function generatePdf(c: Conversion): Uint8Array {
     "FARE AND CONDITIONS", `Fare: ${c.fare_currency} ${Number(c.fare_amount).toLocaleString("en-US")}`,
     `Baggage: ${c.baggage_info || "To be confirmed"}`, `Cancellation: ${c.cancellation_rule || "To be confirmed"}`,
     `Reissue: ${c.reissue_rule || "To be confirmed"}`,
-    "Flight time zones are unverified; confirm local times and dates before ticketing.",
+    "Flight dates and time zones are unverified; confirm local times and year before ticketing.",
     "Subject to confirmation before ticketing."];
   const pages: string[][] = [];
   for (let i = 0; i < rows.length; i += 38) pages.push(rows.slice(i, i + 38));
