@@ -47,6 +47,12 @@ export type SegmentParts = Readonly<{
 
 export function flight(parts: SegmentParts, first: SourceLine, last: SourceLine, sequence: number, diagnostics: ParseDiagnostic[]): FlightRecord {
   const span = range(first, last);
+  if (!/^(?:[01]\d|2[0-3])[0-5]\d$/.test(parts.departureTime) || !/^(?:[01]\d|2[0-3])[0-5]\d$/.test(parts.arrivalTime)) {
+    diagnostics.push({ code: "INVALID_FLIGHT_TIME", severity: "blocking", source: [span], message: "Flight clock is missing or invalid; check the original segment." });
+  }
+  if (!/^HK\d+$/.test(parts.status)) {
+    diagnostics.push({ code: "STATUS_REVIEW_REQUIRED", severity: "review", source: [span], message: "Flight status is not confirmed HK; check the booking status before sharing." });
+  }
   diagnostics.push({ code: "YEAR_UNVERIFIED", severity: "review", source: [span], message: "Flight year is missing from the source; confirm dates before ticketing." });
   diagnostics.push({ code: "TIMEZONE_UNVERIFIED", severity: "review", source: [span], message: "Flight time zones are not verified; confirm local times before ticketing." });
   diagnostics.push({ code: "CABIN_UNVERIFIED", severity: "review", source: [span], message: "Booking class alone does not verify cabin; confirm with the airline." });

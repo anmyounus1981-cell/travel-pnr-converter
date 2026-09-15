@@ -14,7 +14,9 @@ function load(filename) {
   vm.runInNewContext(js, { exports, require: id => id.startsWith(".") ? load(path.resolve(path.dirname(file), id + ".ts")) : require(id) });
   return exports;
 }
-const { fixtures } = load("tests/fixtures/pnr.ts");
+const { fixtures: initialFixtures } = load("tests/fixtures/pnr.ts");
+const { amadeusFixtures } = load("tests/fixtures/amadeus.ts");
+const fixtures = [...initialFixtures, ...amadeusFixtures];
 const { parseStructuredPnr } = load("lib/parser/index.ts");
 const { detectGds } = load("lib/parser/detector.ts");
 const { lexPnr } = load("lib/parser/lexer.ts");
@@ -49,10 +51,15 @@ for (const fixture of fixtures) {
       assert.deepEqual([gaps[i].source.startLine, gaps[i].source.endLine], [expected.source.startLine, expected.source.endLine]);
     });
     assert.equal(result.itinerary.filter(record => record.kind === "unparsed").length, 0);
+    if (fixture.id === "amadeus_wrapped_arnk") {
+      assert.ok(result.diagnostics.some(d => d.code === "STATUS_REVIEW_REQUIRED"));
+      assert.equal(flights[0].arrival.arrivalDayMarker.value, "20JAN");
+    }
+    if (fixture.gds === "amadeus") assert.equal(result.bookingReference.value, fixture.raw.match(/DUM00\d/)[0]);
   });
 }
 
-test("unknown, conflicting and unsupported Amadeus sources block rather than guess", () => {
+test("unknown, conflicting and incomplete Amadeus sources block rather than guess", () => {
   const unknown = parseStructuredPnr("UNRECOGNIZED PNR\n1 UNKNOWN");
   assert.equal(unknown.gds.value, null);
   assert.equal(unknown.diagnostics[0].code, "GDS_UNKNOWN");
@@ -62,7 +69,25 @@ test("unknown, conflicting and unsupported Amadeus sources block rather than gue
   assert.equal(mixed.diagnostics[0].code, "GDS_AMBIGUOUS");
   const amadeus = parseStructuredPnr("RP/DAC1A1234/DAC1A1234 AA/SU 15SEP26/1200Z\n--- RLR ---");
   assert.equal(amadeus.gds.value, "amadeus");
-  assert.equal(amadeus.diagnostics[0].code, "AMADEUS_GRAMMAR_PENDING");
+  assert.ok(amadeus.diagnostics.some(d => d.code === "NO_PASSENGERS" && d.severity === "blocking"));
+  assert.ok(amadeus.diagnostics.some(d => d.code === "NO_FLIGHTS" && d.severity === "blocking"));
+});
+
+test("Amadeus incomplete numbered flight cannot be silently dropped", () => {
+  const broken = parseStructuredPnr("RP/DAC1A0000/DAC1A0000 AA/SU 15SEP26/1200Z   DUM004\n1.DOE/JANE MRS\n2 BG 341 Y 15JAN 5 DACDXB HK1 0830\n--- RLR ---");
+  assert.ok(broken.diagnostics.some(d => d.code === "UNRECOGNIZED_AMADEUS_SEGMENT" && d.severity === "blocking"));
+  assert.equal(broken.itinerary.filter(item => item.kind === "unparsed").length, 1);
+});
+
+test("Amadeus invalid clock blocks and 100 passengers are retained without truncation", () => {
+  const raw = ["RP/DAC1A0000/DAC1A0000 AA/SU 15SEP26/1200Z   DUM005",
+    ...Array.from({ length: 100 }, (_, index) => `${index + 1}.DOE/AGENT${index + 1} MR`),
+    "101 BG 341 Y 15JAN 5 DACDXB HK100 2560 1130 15JAN E BG/DUMMY", "--- RLR ---"].join("\n");
+  const result = parseStructuredPnr(raw);
+  assert.equal(result.passengers.length, 100);
+  assert.equal(result.passengers[99].name.value, "DOE AGENT100");
+  assert.equal(result.itinerary.filter(record => record.kind === "flight").length, 1);
+  assert.ok(result.diagnostics.some(d => d.code === "INVALID_FLIGHT_TIME" && d.severity === "blocking"));
 });
 
 test("incomplete segments and missing passenger names produce explicit diagnostics", () => {
