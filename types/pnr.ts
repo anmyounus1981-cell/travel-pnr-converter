@@ -26,6 +26,13 @@ export type LexedPnr = Readonly<{
 }>;
 
 export type GdsType = "sabre" | "galileo" | "amadeus" | "unknown";
+export type DetectionResult = Readonly<{
+  gds: GdsType;
+  confidence: "high" | "medium" | "low" | "none";
+  evidence: readonly SourceSpan[];
+  candidates: readonly Readonly<{ gds: Exclude<GdsType, "unknown">; score: number; evidence: readonly SourceSpan[] }>[];
+  ambiguous: boolean;
+}>;
 export type PassengerType = "adult" | "child" | "infant";
 export type CabinType = "first" | "business" | "premium_economy" | "economy";
 export type FieldState = "extracted" | "inferred" | "unverified" | "missing" | "corrected";
