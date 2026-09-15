@@ -3,10 +3,15 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const ts = require("typescript");
-function moduleFrom(path, dependencies = {}) {
+const nodePath = require("node:path");
+const cache = new Map();
+function moduleFrom(filename) {
+  const path = nodePath.resolve(filename);
+  if (cache.has(path)) return cache.get(path);
   const source = ts.transpileModule(fs.readFileSync(path, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
-  vm.runInNewContext(source, { exports, require: (id) => dependencies[id] ?? require(id), TextEncoder, Date, Number, String, Math, Buffer });
+  cache.set(path, exports);
+  vm.runInNewContext(source, { exports, require: id => id.startsWith(".") ? moduleFrom(nodePath.resolve(nodePath.dirname(path), id === "./parser" ? "./parser/index.ts" : `${id}.ts`)) : require(id), TextEncoder, Date, Number, String, Math, Buffer });
   return exports;
 }
 const { fixtures } = moduleFrom("tests/fixtures/pnr.ts");
@@ -17,7 +22,37 @@ function fixtureRaw(id) {
 }
 const converter = moduleFrom("lib/converter.ts");
 const { parsePnr, formatQuote, displayPnrTime, formatFare } = converter;
-const { generatePdf } = moduleFrom("lib/pdf/generator.ts", { "../converter": converter });
+const { generatePdf } = moduleFrom("lib/pdf/generator.ts");
+const { adaptParseResult, unresolvedBlockers } = moduleFrom("lib/parser/adapter.ts");
+const { parseStructuredPnr } = moduleFrom("lib/parser/index.ts");
+const { amadeusFixtures } = moduleFrom("tests/fixtures/amadeus.ts");
+test("adapter refuses fabricated dates, cabins and passenger types", () => {
+  const source = parseStructuredPnr(amadeusFixtures[2].raw);
+  const preview = adaptParseResult(source);
+  assert.equal(preview.persistable, false);
+  assert.equal(preview.passengerCount, 2);
+  assert.equal(preview.flightCount, 2);
+  assert.deepEqual(Array.from(preview.fields.passengers, p => p.type), ["", ""]);
+  assert.deepEqual(Array.from(preview.fields.flights, f => [f.departure_at, f.arrival_at, f.cabin]), [["", "", ""], ["", "", ""]]);
+  assert.ok(preview.diagnostics.some(d => d.code === "UNCONFIRMED_FLIGHT_STATUS" && d.severity === "blocking"));
+  const legacy = parsePnr(amadeusFixtures[2].raw, new Date("2026-09-15"));
+  assert.equal(legacy.parserReview.mode, "legacy_fallback");
+  assert.ok(unresolvedBlockers(legacy.parserReview).some(d => d.code === "UNCONFIRMED_FLIGHT_STATUS"));
+});
+test("legacy preview exposes structured count disagreement before save", () => {
+  const raw = fixtureRaw("galileo_cx_wrapped");
+  const result = parsePnr(raw, new Date("2026-09-15"));
+  assert.equal(result.parserReview.source.gds.value, "galileo");
+  assert.equal(result.parserReview.passengerCount, 4);
+  assert.equal(result.parserReview.flightCount, 4);
+  assert.equal(unresolvedBlockers(result.parserReview).some(d => d.code === "LOCAL_DATE_STORAGE_PENDING"), false);
+  const amadeus = parsePnr(amadeusFixtures[0].raw, new Date("2026-09-15"));
+  assert.ok(amadeus.parserReview.diagnostics.some(d => d.code === "PARSER_COUNT_DISAGREEMENT"));
+  const unknown = parsePnr("PNR: TEST27\n1.DOE JANE\nBG 341 J 15JAN27 DACDXB 0830 1130", new Date("2026-09-15"));
+  assert.equal(unknown.parserReview.source.gds.value, null);
+  assert.ok(unknown.parserReview.diagnostics.some(d => d.code === "LEGACY_FORMAT_FALLBACK"));
+  assert.equal(unresolvedBlockers(unknown.parserReview).some(d => d.code === "GDS_UNKNOWN"), false);
+});
 test("parses and formats a two-passenger, two-flight and hotel PNR in English", () => {
   const raw = "PNR: ABC123\n1.MOHAMMAD RAHIM 2.FATIMA RAHIM\nBG 341 J 15JAN27 DACDXB 0830 1130\nEK 003 M 15JAN27 DXBLHR 1400 1820\nHTL MARRIOTT DOWNTOWN 15JAN27-20JAN27 5 NIGHTS";
   const parsed = parsePnr(raw, new Date("2026-09-15"));

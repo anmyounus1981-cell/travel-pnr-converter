@@ -1,3 +1,7 @@
+import { parseStructuredPnr } from "./parser";
+import { adaptParseResult, type ParserReview } from "./parser/adapter";
+import type { ParseDiagnostic } from "@/types/pnr";
+
 export type Passenger = { name: string; type: string };
 export type Flight = { airline: string; flight_number: string; origin: string; destination: string; departure_at: string; arrival_at: string; cabin: string };
 export type Hotel = { hotel_name: string; check_in: string; check_out: string; nights: number; room_type: string };
@@ -33,7 +37,7 @@ export function formatFare(c: Pick<Conversion, "fare_amount" | "fare_currency">)
   const amount = Number(c.fare_amount);
   return Number.isFinite(amount) && amount > 0 ? `${c.fare_currency} ${amount.toLocaleString("en-US")}` : "To be confirmed";
 }
-export function parsePnr(raw: string, reference = new Date()): Pick<Conversion, "pnr_code" | "gds_type" | "passengers" | "flights" | "hotels"> {
+export function parseLegacyPnr(raw: string, reference = new Date()): Pick<Conversion, "pnr_code" | "gds_type" | "passengers" | "flights" | "hotels"> {
   const passengers: Passenger[] = [], flights: Flight[] = [], hotels: Hotel[] = [];
   const normalized = raw.replace(/\s+/g, " ").trim();
   // A Galileo vendor time limit can provide the year missing from flight lines.
@@ -77,6 +81,26 @@ export function parsePnr(raw: string, reference = new Date()): Pick<Conversion, 
     }
   }
   return { pnr_code, gds_type, passengers, flights, hotels };
+}
+
+/** Runs the new pipeline first. Legacy date conversion remains an explicit,
+ * reviewable fallback until the local-date database migration is available. */
+export function parsePnr(raw: string, reference = new Date()): Pick<Conversion, "pnr_code" | "gds_type" | "passengers" | "flights" | "hotels"> & { parserReview: ParserReview } {
+  const source = parseStructuredPnr(raw);
+  const preview = adaptParseResult(source);
+  const legacy = parseLegacyPnr(raw, reference);
+  const diagnostics: ParseDiagnostic[] = [...preview.diagnostics];
+  if (source.gds.value === "unknown" || source.gds.value === null) diagnostics.push({ code: "LEGACY_FORMAT_FALLBACK", severity: "review", source: [], message: "Structured GDS format was not identified. The older parser preview needs manual verification." });
+  if (source.gds.value && source.gds.value !== "unknown" && (preview.passengerCount !== legacy.passengers.length || preview.flightCount !== legacy.flights.length)) diagnostics.push({
+    code: "PARSER_COUNT_DISAGREEMENT", severity: "blocking", source: [],
+    message: `Source parser found ${preview.passengerCount} passengers and ${preview.flightCount} flights; older preview has ${legacy.passengers.length} passengers and ${legacy.flights.length} flights. Resolve the difference before sharing.`,
+  });
+  if (source.gds.value && source.gds.value !== "unknown" && preview.passengerCount && preview.fields.passengers.some((passenger, i) => passenger.name !== legacy.passengers[i]?.name)) diagnostics.push({ code: "PASSENGER_DISAGREEMENT", severity: "blocking", source: [], message: "Passenger names differ between the source parser and older preview; check the original PNR." });
+  if (source.gds.value && source.gds.value !== "unknown" && preview.flightCount && preview.fields.flights.some((flight, i) => {
+    const older = legacy.flights[i];
+    return !older || ["airline", "flight_number", "origin", "destination"].some(key => flight[key as keyof typeof flight] !== older[key as keyof typeof older]);
+  })) diagnostics.push({ code: "FLIGHT_DISAGREEMENT", severity: "blocking", source: [], message: "Flight routes or numbers differ between parsers; check the original PNR." });
+  return { ...legacy, parserReview: { mode: "legacy_fallback", diagnostics, source, passengerCount: preview.passengerCount, flightCount: preview.flightCount } };
 }
 export function formatQuote(c: Conversion): string {
   const lines = ["*TRAVEL QUOTE*", c.pnr_code ? `Booking reference: ${c.pnr_code}` : "", "", "*Passengers*",
