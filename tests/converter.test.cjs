@@ -103,3 +103,19 @@ TKT/TIME LIMIT 1.T-12AUG-XXXX*ASI`;
   assert.equal(result.flights[2].arrival_at, "2026-11-11T17:10:00");
   assert.equal(result.flights[3].arrival_at, "2026-11-12T05:50:00");
 });
+test("parses Galileo space-before-dot flights and the second passenger using the vendor time-limit year", () => {
+  const raw = `TEST02/SA DACOU 7M6WSA AG 00000000 22JUL
+1.1DOE/JANE ANN MRS  2.1DOE/JOHN ADAM MR
+1 . BS 105 K 25JUL DACCGP HK2 0940 1035 O* E FR
+2 . BS 322 K 27JUL CGPOAC HK2 0940 1035 O* E SU
+VENDOR LOCATOR DATA EXISTS >*VL
+VENDOR REMARKS
+VRMK-VI/ABS *ADTK1GB5// TTL FOR AUTO CANX FIXED FOR 22JUL25 AT 1102 GMT`;
+  const result = parsePnr(raw, new Date("2026-09-15"));
+  assert.equal(result.gds_type, "galileo");
+  assert.equal(result.pnr_code, "TEST02");
+  assert.deepEqual(Array.from(result.passengers, p => p.name), ["DOE JANE ANN", "DOE JOHN ADAM"]);
+  assert.deepEqual(Array.from(result.flights, f => `${f.airline} ${f.flight_number} ${f.origin}-${f.destination}`), ["BS 105 DAC-CGP", "BS 322 CGP-OAC"]);
+  assert.equal(result.flights[0].departure_at, "2025-07-25T09:40:00");
+  assert.equal(result.flights[1].arrival_at, "2025-07-27T10:35:00");
+});

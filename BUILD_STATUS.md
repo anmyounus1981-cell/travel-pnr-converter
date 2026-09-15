@@ -6,3 +6,4 @@ English-only output is enforced by the quote formatter and PDF generator. Existi
 Live Supabase verification requires the Vercel environment variables locally; this workspace has no linked Vercel CLI or .env.local.
 GDS clock values are displayed without an assumed UTC offset. The application does not yet resolve airport time zones or overnight arrival dates; agents must verify these before ticketing.
 The rule parser now recognizes the tested wrapped Galileo and Sabre itinerary shapes, including ARNK, HK/HS statuses and explicit arrival-day markers. Those samples omit flight years; inferred years and unmarked overnight arrivals still require agent review.
+Galileo segment numbers with a space before the dot are recognized, and an explicit dated vendor time limit anchors otherwise yearless flight dates. The UI prevents saving a flight quote with zero parsed or manually added flights.
