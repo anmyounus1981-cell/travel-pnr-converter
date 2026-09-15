@@ -29,6 +29,10 @@ export function displayPnrTime(value: string): string {
   const match = String(value || "").match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
   return match ? `${match[1]} ${match[2]}` : "To be confirmed";
 }
+export function formatFare(c: Pick<Conversion, "fare_amount" | "fare_currency">): string {
+  const amount = Number(c.fare_amount);
+  return Number.isFinite(amount) && amount > 0 ? `${c.fare_currency} ${amount.toLocaleString("en-US")}` : "To be confirmed";
+}
 export function parsePnr(raw: string, reference = new Date()): Pick<Conversion, "pnr_code" | "gds_type" | "passengers" | "flights" | "hotels"> {
   const passengers: Passenger[] = [], flights: Flight[] = [], hotels: Hotel[] = [];
   const normalized = raw.replace(/\s+/g, " ").trim();
@@ -54,7 +58,7 @@ export function parsePnr(raw: string, reference = new Date()): Pick<Conversion, 
     const departure = date(match[4], travelReference);
     if (!departure || !/^(?:[01]\d|2[0-3])[0-5]\d$/.test(match[7]) || !/^(?:[01]\d|2[0-3])[0-5]\d$/.test(match[9])) continue;
     const arrival = arrivalDay(departure, match[10], match[8] === "#");
-    flights.push({ airline: match[1].toUpperCase(), flight_number: match[2], origin: match[5].toUpperCase(), destination: match[6].toUpperCase(), departure_at: `${departure}T${clock(match[7])}:00`, arrival_at: `${arrival}T${clock(match[9])}:00`, cabin: "economy" });
+    flights.push({ airline: match[1].toUpperCase(), flight_number: match[2], origin: match[5].toUpperCase(), destination: match[6].toUpperCase(), departure_at: `${departure}T${clock(match[7])}:00`, arrival_at: `${arrival}T${clock(match[9])}:00`, cabin: "" });
   }
   for (const line of raw.split(/\r?\n/)) {
     for (const match of line.matchAll(/(?:^|\s)\d+\.\s*([A-Z][A-Z .'-]+\s+[A-Z][A-Z .'-]+)(?=\s+\d+\.|$)/g)) {
@@ -64,7 +68,7 @@ export function parsePnr(raw: string, reference = new Date()): Pick<Conversion, 
     const flight = line.match(/(?:^|\s)([A-Z0-9]{2})\s*(\d{1,4})\s*([A-Z])?\s+(\d{2}[A-Z]{3}(?:\d{2})?)\s+([A-Z]{3})([A-Z]{3})\s+(\d{4})\s+(\d{4})/i);
     if (flight) {
       const day = date(flight[4], travelReference);
-      if (day && !flights.some(f => f.airline === flight[1].toUpperCase() && f.flight_number === flight[2] && f.departure_at === `${day}T${clock(flight[7])}:00`)) flights.push({ airline: flight[1].toUpperCase(), flight_number: flight[2], origin: flight[5].toUpperCase(), destination: flight[6].toUpperCase(), departure_at: `${day}T${clock(flight[7])}:00`, arrival_at: `${day}T${clock(flight[8])}:00`, cabin: "economy" });
+      if (day && !flights.some(f => f.airline === flight[1].toUpperCase() && f.flight_number === flight[2] && f.departure_at === `${day}T${clock(flight[7])}:00`)) flights.push({ airline: flight[1].toUpperCase(), flight_number: flight[2], origin: flight[5].toUpperCase(), destination: flight[6].toUpperCase(), departure_at: `${day}T${clock(flight[7])}:00`, arrival_at: `${day}T${clock(flight[8])}:00`, cabin: "" });
     }
     const hotel = line.match(/(?:HTL|HOTEL)\s+(.+?)\s+(\d{2}[A-Z]{3}(?:\d{2})?)-(\d{2}[A-Z]{3}(?:\d{2})?)(?:\s+(\d+)\s+NIGHTS?)?/i);
     if (hotel) {
@@ -79,7 +83,7 @@ export function formatQuote(c: Conversion): string {
     ...c.passengers.map(p => `• ${p.name} (${p.type})`), "", "*Flights*",
     ...c.flights.map(f => `• ${f.airline} ${f.flight_number}: ${f.origin} → ${f.destination} | ${displayPnrTime(f.departure_at)} – ${displayPnrTime(f.arrival_at)}`),
     ...(c.hotels.length ? ["", "*Hotels*", ...c.hotels.map(h => `• ${h.hotel_name}: ${h.check_in} to ${h.check_out} (${h.nights} nights)`)] : []),
-    "", `*Fare:* ${c.fare_currency} ${Number(c.fare_amount).toLocaleString("en-US")}`,
+    "", `*Fare:* ${formatFare(c)}`,
     `*Baggage:* ${c.baggage_info || "To be confirmed"}`,
     `*Cancellation:* ${c.cancellation_rule || "To be confirmed"}`,
     `*Reissue:* ${c.reissue_rule || "To be confirmed"}`,

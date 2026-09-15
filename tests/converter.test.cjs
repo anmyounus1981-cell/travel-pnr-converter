@@ -10,7 +10,7 @@ function moduleFrom(path, dependencies = {}) {
   return exports;
 }
 const converter = moduleFrom("lib/converter.ts");
-const { parsePnr, formatQuote, displayPnrTime } = converter;
+const { parsePnr, formatQuote, displayPnrTime, formatFare } = converter;
 const { generatePdf } = moduleFrom("lib/pdf/generator.ts", { "../converter": converter });
 test("parses and formats a two-passenger, two-flight and hotel PNR in English", () => {
   const raw = "PNR: ABC123\n1.MOHAMMAD RAHIM 2.FATIMA RAHIM\nBG 341 J 15JAN27 DACDXB 0830 1130\nEK 003 M 15JAN27 DXBLHR 1400 1820\nHTL MARRIOTT DOWNTOWN 15JAN27-20JAN27 5 NIGHTS";
@@ -118,4 +118,16 @@ VRMK-VI/ABS *ADTK1GB5// TTL FOR AUTO CANX FIXED FOR 22JUL25 AT 1102 GMT`;
   assert.deepEqual(Array.from(result.flights, f => `${f.airline} ${f.flight_number} ${f.origin}-${f.destination}`), ["BS 105 DAC-CGP", "BS 322 CGP-OAC"]);
   assert.equal(result.flights[0].departure_at, "2025-07-25T09:40:00");
   assert.equal(result.flights[1].arrival_at, "2025-07-27T10:35:00");
+});
+test("does not invent a fare, cabin or hotel heading in a flight-only PDF", () => {
+  const raw = "PNR: TEST27\n1.DOE JANE\nBG 341 J 15JAN27 DACDXB 0830 1130";
+  const parsed = parsePnr(raw, new Date("2026-09-15"));
+  const conversion = { ...parsed, raw_text: raw, status: "completed", fare_amount: 0, fare_currency: "BDT", baggage_info: "", cancellation_rule: "", reissue_rule: "" };
+  assert.equal(parsed.flights[0].cabin, "");
+  assert.equal(formatFare(conversion), "To be confirmed");
+  assert.match(formatQuote(conversion), /\*Fare:\* To be confirmed/);
+  assert.doesNotMatch(formatQuote(conversion), /BDT 0\b/);
+  const pdf = Buffer.from(generatePdf({ ...conversion, flights: parsed.flights.map(f => ({ ...f, cabin: "economy" })) })).toString("latin1");
+  assert.match(pdf, /Fare: To be confirmed/);
+  assert.doesNotMatch(pdf, /economy|HOTELS|Fare: BDT 0/);
 });

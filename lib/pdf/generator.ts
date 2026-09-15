@@ -1,11 +1,11 @@
-import { displayPnrTime, type Conversion } from "../converter";
+import { displayPnrTime, formatFare, type Conversion } from "../converter";
 const plain = (value: string) => value.normalize("NFKD").replace(/[^\x20-\x7E]/g, "?").replace(/[\\()]/g, "\\$&");
 export function generatePdf(c: Conversion): Uint8Array {
   const rows = ["TRAVEL ITINERARY", c.pnr_code ? `Booking reference: ${c.pnr_code}` : "Booking reference: Pending",
     "PASSENGERS", ...c.passengers.map(p => `${p.name} (${p.type})`),
-    "FLIGHTS", ...c.flights.flatMap(f => [`${f.airline} ${f.flight_number} | ${f.origin} to ${f.destination} | ${f.cabin}`, `Departure: ${displayPnrTime(f.departure_at)} | Arrival: ${displayPnrTime(f.arrival_at)}`]),
-    "HOTELS", ...c.hotels.map(h => `${h.hotel_name} | ${h.check_in} to ${h.check_out} | ${h.nights} nights`),
-    "FARE AND CONDITIONS", `Fare: ${c.fare_currency} ${Number(c.fare_amount).toLocaleString("en-US")}`,
+    "FLIGHTS", ...c.flights.flatMap(f => [`${f.airline} ${f.flight_number} | ${f.origin} to ${f.destination}`, `Departure: ${displayPnrTime(f.departure_at)} | Arrival: ${displayPnrTime(f.arrival_at)}`]),
+    ...(c.hotels.length ? ["HOTELS", ...c.hotels.map(h => `${h.hotel_name} | ${h.check_in} to ${h.check_out} | ${h.nights} nights`)] : []),
+    "FARE AND CONDITIONS", `Fare: ${formatFare(c)}`,
     `Baggage: ${c.baggage_info || "To be confirmed"}`, `Cancellation: ${c.cancellation_rule || "To be confirmed"}`,
     `Reissue: ${c.reissue_rule || "To be confirmed"}`,
     "Flight dates and time zones are unverified; confirm local times and year before ticketing.",
