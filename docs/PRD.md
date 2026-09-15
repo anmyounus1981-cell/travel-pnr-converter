@@ -17,7 +17,7 @@ Travel agency sales managers, reservation agents, and B2B corporate travel accou
 - [ ] Paste raw GDS PNR text into a textarea
 - [ ] Enter fare, baggage choice, cancellation/reissue rules alongside
 - [ ] Auto-parse passengers, flights, hotels from raw text
-- [ ] Generate Bengali WhatsApp-formatted quote (copyable)
+- [ ] Generate English WhatsApp-formatted quote (copyable)
 - [ ] Generate downloadable PDF itinerary
 - [ ] Save conversions to history, re-view and re-download
 - [ ] Edit parsed segments before generating output
@@ -27,7 +27,7 @@ Travel agency sales managers, reservation agents, and B2B corporate travel accou
 - Multi-user auth / per-agent login
 - Payment processing or invoicing
 - Client portal or customer-facing site
-- Multi-language beyond Bengali + English
+- Multi-language beyond English
 
 ## Success criteria
-A sales agent pastes a raw Amadeus PNR block, enters fare (BDT 85,000) + 30kg baggage + standard cancellation rules, clicks Convert, and within seconds copies a clean Bengali WhatsApp quote and downloads a structured PDF itinerary — zero manual editing. Repeats 20× per day without formatting errors.
+A sales agent pastes a raw Amadeus PNR block, enters fare (BDT 85,000) + 30kg baggage + standard cancellation rules, clicks Convert, and within seconds copies a clean English WhatsApp quote and downloads a structured PDF itinerary — zero manual editing. Repeats 20× per day without formatting errors.

@@ -14,7 +14,7 @@
 | baggage_info | text | e.g. '30kg checked + 7kg cabin' |
 | cancellation_rule | text | |
 | reissue_rule | text | |
-| whatsapp_output | text | generated Bengali quote text |
+| whatsapp_output | text | generated English quote text |
 | created_at | timestamptz | |
 
 RLS: permissive read/write in v1; owner-scoped at lock-down.

@@ -9,7 +9,7 @@ Next.js (App Router) + Supabase (Postgres + Storage) + Vercel. PDF generation vi
 3. Fills fare, currency, baggage, cancellation rule, reissue rule fields
 4. Clicks **Convert** → server action parses raw text into structured segments
 5. Parsed passengers/flights/hotels shown in editable form
-6. Agent clicks **Generate WhatsApp Quote** → Bengali text rendered, copy button
+6. Agent clicks **Generate WhatsApp Quote** → English text rendered, copy button
 7. Agent clicks **Generate PDF** → PDF itinerary downloaded
 8. Conversion saved to history with all parsed data
 
@@ -40,7 +40,7 @@ lib/
   data/conversions.ts      # all DB reads/writes
   parser/rule-parser.ts     # regex-based GDS parser
   ai/ai-parser.ts           # AI-assisted parser
-  whatsapp/formatter.ts     # Bengali WhatsApp template
+  whatsapp/formatter.ts     # English WhatsApp template
   pdf/generator.ts          # PDF itinerary builder
   types.ts
 __tests__/
@@ -53,7 +53,7 @@ __tests__/
 |---|---|---|---|
 | data | All DB access | conversions, segments, passengers, quotes | 1st |
 | parser | Parse raw GDS text → structured segments | PNR code, flights, hotels, passengers | 2nd |
-| whatsapp | Format segments → Bengali WhatsApp text | quote text output | 3rd |
+| whatsapp | Format segments → English WhatsApp text | quote text output | 3rd |
 | pdf | Format segments → PDF itinerary | PDF buffer | 3rd |
 | converter UI | Input form + parsed editor + outputs | user interaction | 4th |
 | history UI | List/review past conversions | saved conversion rows | 5th |

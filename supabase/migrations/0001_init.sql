@@ -105,7 +105,7 @@ insert into conversions (id, raw_text, pnr_code, gds_type, status, fare_amount, 
 select 'a1111111-1111-1111-1111-111111111111', '1.MOHAMMAD RAHIM 2.FATIMA RAHIM
 BG 341 J DACDXB 15JAN 0830 1130
 EK 003 M DXBLHR 15JAN 1400 1820
-HTL MARRIOTT DOWNTOWN 15JAN-20JAN 5 NIGHTS', 'ABC123', 'amadeus', 'completed', 85000, 'BDT', '30kg checked + 7kg cabin', 'Non-refundable', 'Reissue fee BDT 5,000', '*✈️ ফ্লাইট রুট*\nBG341: ঢাকা→দুবাই ১৫ জানুয়ারি ০৮:৩০-১১:৩০\nEK003: দুবাই→লন্ডন ১৫ জানুয়ারি ১৪:০০-১৮:২০\n\n🧳 ব্যাগ: ৩০কেজি চেকড + ৭কেজি কেবিন\n❌ ক্যানসেল: নন-রিফান্ডেবল\n🔄 রিইস্যু: ৫,০০০ টাকা\n💰 ভাড়া: ৮৫,০০০ টাকা', now() - interval '2 days'
+HTL MARRIOTT DOWNTOWN 15JAN-20JAN 5 NIGHTS', 'ABC123', 'amadeus', 'completed', 85000, 'BDT', '30kg checked + 7kg cabin', 'Non-refundable', 'Reissue fee BDT 5,000', '*TRAVEL QUOTE*\nBooking reference: ABC123\nBG 341: DAC to DXB\nEK 003: DXB to LHR\nFare: BDT 85,000\nBaggage: 30kg checked + 7kg cabin\nCancellation: Non-refundable\nReissue: Reissue fee BDT 5,000', now() - interval '2 days'
 where not exists (select 1 from conversions where id = 'a1111111-1111-1111-1111-111111111111');
 
 insert into passengers (id, conversion_id, name, type)

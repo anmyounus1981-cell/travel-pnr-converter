@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "vibe-stack-supabase",
-  description: "Next.js + Supabase starter",
+  title: "Travel PNR Converter",
+  description: "English quotes and itineraries from GDS PNR text",
 };
 
 export default function RootLayout({

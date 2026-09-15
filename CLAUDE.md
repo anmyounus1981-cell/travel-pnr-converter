@@ -1,6 +1,6 @@
 # travel-pnr-converter
 
-GDS PNR text-to-quote converter: paste raw Sabre/Galileo/Amadeus PNR text, get Bengali WhatsApp quotes and PDF itineraries in seconds.
+GDS PNR text-to-quote converter: paste raw Sabre/Galileo/Amadeus PNR text, get English WhatsApp quotes and PDF itineraries in seconds.
 
 ## ⚠️ READ THIS BEFORE WRITING ANY CODE
 A complete, correct plan for this app is already committed in `/docs`. Do **not** start

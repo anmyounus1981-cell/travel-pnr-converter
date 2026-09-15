@@ -19,7 +19,7 @@
 | Tool | What it does | Risk |
 |---|---|---|
 | `parse_pnr_text` | Parse raw GDS text → structured JSON | low (auto) |
-| `generate_whatsapp_quote` | Format parsed data → Bengali WhatsApp text | low (auto) |
+| `generate_whatsapp_quote` | Format parsed data → English WhatsApp text | low (auto) |
 | `generate_pdf_itinerary` | Format parsed data → PDF buffer | low (auto) |
 | `save_conversion` | Persist conversion + segments to DB | medium (user action) |
 | `delete_conversion` | Remove conversion from history | critical (human-only) |

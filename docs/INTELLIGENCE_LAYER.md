@@ -5,7 +5,7 @@ Raw GDS text varies by system (Sabre, Galileo, Amadeus), agent formatting, line 
 - Inconsistent date/time formats (DDMMMYY, DD/MM/YYYY, etc.)
 - Airline codes vs full names (BG vs Biman Bangladesh)
 - Missing or extra fields, header/footer noise
-- Bengali + English mixed text
+- English mixed text
 
 ## Auto-structure schema
 ```json

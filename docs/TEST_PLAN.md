@@ -7,7 +7,7 @@
 4. Click **Convert**
 5. Verify: passengers (2), flight segments (2), hotel segment (1) shown in editable form
 6. Click **Generate WhatsApp Quote**
-7. Verify: Bengali text renders with airline, route, times, fare, baggage, rules — copy button works
+7. Verify: English text renders with airline, route, times, fare, baggage, rules — copy button works
 8. Click **Generate PDF**
 9. Verify: PDF downloads with flight table + fare summary
 10. Go to History — verify conversion appears, can re-open and re-download

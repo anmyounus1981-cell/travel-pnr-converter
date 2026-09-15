@@ -11,13 +11,13 @@
 - **DoD**: Paste a raw Amadeus PNR, click Convert, see passengers + flights + hotels parsed and saved, editable on screen.
 
 ## Sprint 2: WhatsApp + PDF Output
-**Goal**: Generate Bengali WhatsApp quote and PDF itinerary from parsed data.
-- [ ] Build `lib/whatsapp/formatter.ts` — Bengali WhatsApp template with flights, fare, baggage, rules
+**Goal**: Generate English WhatsApp quote and PDF itinerary from parsed data.
+- [ ] Build `lib/whatsapp/formatter.ts` — English WhatsApp template with flights, fare, baggage, rules
 - [ ] Build `lib/pdf/generator.ts` — structured PDF itinerary with flight table, hotel, fare summary
 - [ ] Add Generate WhatsApp button → renders formatted text + copy-to-clipboard
 - [ ] Add Generate PDF button → downloads PDF
 - [ ] Save generated outputs to conversion record
-- **DoD**: From a parsed conversion, click Generate WhatsApp → copy clean Bengali quote; click Generate PDF → download itinerary PDF. Both saved to history.
+- **DoD**: From a parsed conversion, click Generate WhatsApp → copy clean English quote; click Generate PDF → download itinerary PDF. Both saved to history.
 
 ## Sprint 3: History + Edit + Polish
 **Goal**: Full history page, segment editing, all five UI states.
