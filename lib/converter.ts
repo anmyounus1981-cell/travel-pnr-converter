@@ -11,6 +11,13 @@ function date(code: string, reference: Date): string {
   return month && day >= 1 && day <= 31 ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
 }
 function clock(value: string): string { return `${value.slice(0, 2)}:${value.slice(2)}`; }
+// GDS paste supplies airport wall-clock times. The existing database column is
+// timestamptz and interprets zone-less values as UTC; do not present that
+// assumed offset as an airline-confirmed time zone in client documents.
+export function displayPnrTime(value: string): string {
+  const match = String(value || "").match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  return match ? `${match[1]} ${match[2]}` : "To be confirmed";
+}
 export function parsePnr(raw: string, reference = new Date()): Pick<Conversion, "pnr_code" | "gds_type" | "passengers" | "flights" | "hotels"> {
   const passengers: Passenger[] = [], flights: Flight[] = [], hotels: Hotel[] = [];
   const pnr_code = raw.match(/(?:PNR|RECORD LOCATOR|BOOKING REF)\s*[:#-]?\s*([A-Z0-9]{6})/i)?.[1] || "";
@@ -41,12 +48,13 @@ export function parsePnr(raw: string, reference = new Date()): Pick<Conversion, 
 export function formatQuote(c: Conversion): string {
   const lines = ["*TRAVEL QUOTE*", c.pnr_code ? `Booking reference: ${c.pnr_code}` : "", "", "*Passengers*",
     ...c.passengers.map(p => `• ${p.name} (${p.type})`), "", "*Flights*",
-    ...c.flights.map(f => `• ${f.airline} ${f.flight_number}: ${f.origin} → ${f.destination} | ${f.departure_at.replace("T", " ")} – ${f.arrival_at.replace("T", " ")}`),
+    ...c.flights.map(f => `• ${f.airline} ${f.flight_number}: ${f.origin} → ${f.destination} | ${displayPnrTime(f.departure_at)} – ${displayPnrTime(f.arrival_at)}`),
     ...(c.hotels.length ? ["", "*Hotels*", ...c.hotels.map(h => `• ${h.hotel_name}: ${h.check_in} to ${h.check_out} (${h.nights} nights)`)] : []),
     "", `*Fare:* ${c.fare_currency} ${Number(c.fare_amount).toLocaleString("en-US")}`,
     `*Baggage:* ${c.baggage_info || "To be confirmed"}`,
     `*Cancellation:* ${c.cancellation_rule || "To be confirmed"}`,
     `*Reissue:* ${c.reissue_rule || "To be confirmed"}`,
-    "", "All fare, baggage and rules are subject to confirmation before ticketing."];
+    "", "Flight times have no verified time zones. Confirm local times and date changes with the airline before ticketing.",
+    "All fare, baggage and rules are subject to confirmation before ticketing."];
   return lines.filter((line, index) => line || lines[index - 1] !== "").join("\n").trim();
 }

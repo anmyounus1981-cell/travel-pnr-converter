@@ -3,14 +3,15 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
 const ts = require("typescript");
-function moduleFrom(path) {
+function moduleFrom(path, dependencies = {}) {
   const source = ts.transpileModule(fs.readFileSync(path, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
-  vm.runInNewContext(source, { exports, require, TextEncoder, Date, Number, String, Math, Buffer });
+  vm.runInNewContext(source, { exports, require: (id) => dependencies[id] ?? require(id), TextEncoder, Date, Number, String, Math, Buffer });
   return exports;
 }
-const { parsePnr, formatQuote } = moduleFrom("lib/converter.ts");
-const { generatePdf } = moduleFrom("lib/pdf/generator.ts");
+const converter = moduleFrom("lib/converter.ts");
+const { parsePnr, formatQuote, displayPnrTime } = converter;
+const { generatePdf } = moduleFrom("lib/pdf/generator.ts", { "../converter": converter });
 test("parses and formats a two-passenger, two-flight and hotel PNR in English", () => {
   const raw = "PNR: ABC123\n1.MOHAMMAD RAHIM 2.FATIMA RAHIM\nBG 341 J 15JAN27 DACDXB 0830 1130\nEK 003 M 15JAN27 DXBLHR 1400 1820\nHTL MARRIOTT DOWNTOWN 15JAN27-20JAN27 5 NIGHTS";
   const parsed = parsePnr(raw, new Date("2026-09-15"));
@@ -21,9 +22,14 @@ test("parses and formats a two-passenger, two-flight and hotel PNR in English", 
   const quote = formatQuote(conversion);
   assert.match(quote, /BDT 85,000/);
   assert.match(quote, /DAC → DXB/);
+  assert.match(quote, /2027-01-15 08:30/);
+  assert.doesNotMatch(quote, /\+00:00/);
+  assert.match(quote, /Confirm local times and date changes/);
+  assert.equal(displayPnrTime("2027-01-15T08:30:00+00:00"), "2027-01-15 08:30");
   assert.doesNotMatch(quote, /[\u0980-\u09ff]/);
   const pdf = Buffer.from(generatePdf(conversion));
   assert.match(pdf.toString("latin1"), /^%PDF-1\.4/);
   assert.match(pdf.toString("latin1"), /FARE AND CONDITIONS/);
+  assert.doesNotMatch(pdf.toString("latin1"), /\+00:00/);
   assert.doesNotMatch(pdf.toString("latin1"), /[\u0980-\u09ff]/);
 });
